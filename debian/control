@@ -1,0 +1,27 @@
+Source: xfce4-focus-plugin
+Section: xfce
+Priority: optional
+Maintainer: Rodrigo <rodrigo@ffr.cl>
+Build-Depends: debhelper-compat (= 13),
+               pkgconf,
+               libglib2.0-dev,
+               libgtk-3-dev,
+               libxfce4panel-2.0-dev,
+               libxfce4ui-2-dev,
+               libxfconf-0-dev,
+               xfce4-dev-tools
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: xfce4-focus-plugin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, xfce4-panel (>= 4.16.0)
+Description: Screen-lock inhibitor plugin for the Xfce panel
+ A panel plugin for xfce4-panel with a "Stay awake" toggle that
+ temporarily inhibits screen locking, screen blanking/DPMS and
+ automatic suspend (the same idea as GNOME's Caffeine), by requesting
+ an inhibit from whichever of xfce4-screensaver/light-locker and
+ xfce4-power-manager are running on the session bus.
+ .
+ Shown as a single eye-icon button on the panel, with no configuration
+ dialog needed.
