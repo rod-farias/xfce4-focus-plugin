@@ -1,3 +1,38 @@
+xfce4-focus-plugin (0.5.2-1) unstable; urgency=medium
+
+  * Fix the dropdown arrow being invisible when the plugin is added to
+    a vertical panel: the button row now re-orients itself (and swaps
+    the arrow glyph) in response to the panel's own orientation.
+  * Mark the plugin unique (X-XFCE-Unique=true) so the panel only
+    allows one instance of it across all panels at once, instead of
+    letting independent instances fight over the same D-Bus inhibit
+    and Do Not Disturb setting.
+  * Fix Do Not Disturb staying on forever if the plugin is removed
+    from the panel while active (FocusDnd's dispose now turns it back
+    off, mirroring what FocusInhibit's dispose already did for Stay
+    Awake).
+  * Fix a use-after-free crash on plugin teardown: FocusDnd was
+    unreffing the shared, process-wide xfconf channel object returned
+    by xfconf_channel_get() as if it owned a reference to it, which
+    could take down xfconf for the rest of the panel process (or crash
+    outright) instead of just releasing its own signal handler.
+  * Redraw the "Add New Items" / Panel Preferences icon with bolder,
+    thicker linework traced from the same reference artwork as the
+    panel button's own icon -- the previous thin strokes collapsed
+    into an unrecognizable blob at the small size those dialogs use.
+  * Fix the panel icon going stale (wrong colors, sometimes invisible)
+    after a live light/dark theme switch, until something else (e.g.
+    clicking the button) happened to redraw it. Both hand-recolored
+    icons (the main eye and the dropdown's "no bell" glyph) now listen
+    for GTK's own style-updated signal and re-render immediately.
+  * Fix the active-state icon showing the current GTK theme's default
+    checked-button background (a visibly mismatched box on light
+    themes) behind the eye -- the toggle button is now fully flattened
+    in every state, letting only the icon convey whether Focus mode is
+    active.
+
+ -- Rodrigo <rodrigo@ffr.cl>  Fri, 11 Sep 2026 20:19:43 -0300
+
 xfce4-focus-plugin (0.5.1-1) unstable; urgency=medium
 
   * Re-derive the main button's eye icons from new reference artwork

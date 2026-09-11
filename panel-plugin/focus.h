@@ -37,6 +37,11 @@ struct _FocusPlugin
    * informational, it does not fight that change back; see
    * focus_update_dnd_warning(). */
   GtkWidget *icon_dnd_warning;
+  /* the "no bell" glyph next to check_dnd -- like img_stay_awake, its
+   * color is baked in at render time (see render_bell_disabled_pixbuf())
+   * rather than following the theme automatically, so it needs the same
+   * manual refresh on a theme change; see focus_style_updated_cb(). */
+  GtkWidget *img_dnd_bell;
   GtkWidget *duration_scale;
   GtkWidget *duration_label;
   GtkWidget *duration_remaining_label;

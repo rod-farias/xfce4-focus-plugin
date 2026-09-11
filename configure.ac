@@ -1,7 +1,7 @@
 dnl configure.ac for xfce4-focus-plugin
 
 AC_PREREQ([2.69])
-AC_INIT([xfce4-focus-plugin], [0.5.1], [https://github.com/], [xfce4-focus-plugin])
+AC_INIT([xfce4-focus-plugin], [0.5.2], [https://github.com/], [xfce4-focus-plugin])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([1.11 no-dist-gzip dist-bzip2 tar-ustar foreign])

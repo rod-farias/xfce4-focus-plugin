@@ -469,6 +469,38 @@ create_toggle_button (const gchar *tooltip, GCallback callback, FocusPlugin *fp,
   gtk_widget_set_focus_on_click (button, FALSE);
   gtk_widget_set_tooltip_text (button, tooltip);
 
+  /* GTK_RELIEF_NONE only flattens the button while it behaves like an
+   * ordinary, unchecked GtkButton -- once toggled on, most themes still
+   * paint their normal ":checked" pressed-button background (a solid
+   * or rounded highlight box) behind it regardless of relief style,
+   * since that state is meant to read as "pressed". This button
+   * already signals Focus mode's active state through the icon itself
+   * (open vs. closed eye, see focus_update_stay_awake_icon()), so that
+   * extra highlight box is redundant -- and on light themes in
+   * particular it renders as a visibly mismatched beige/gray box
+   * behind the icon rather than reading as part of the design. Strip
+   * it explicitly, the same way focus-arrow-button already strips
+   * padding from the arrow button below. */
+  {
+    GtkCssProvider *flat_css = gtk_css_provider_new ();
+    gtk_css_provider_load_from_data (flat_css,
+                                      "button.focus-main-button,"
+                                      "button.focus-main-button:checked,"
+                                      "button.focus-main-button:active,"
+                                      "button.focus-main-button:hover {"
+                                      "  background: none;"
+                                      "  background-image: none;"
+                                      "  border: none;"
+                                      "  box-shadow: none;"
+                                      "}",
+                                      -1, NULL);
+    gtk_style_context_add_class (gtk_widget_get_style_context (button), "focus-main-button");
+    gtk_style_context_add_provider (gtk_widget_get_style_context (button),
+                                     GTK_STYLE_PROVIDER (flat_css),
+                                     GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref (flat_css);
+  }
+
   image = gtk_image_new ();
   gtk_container_add (GTK_CONTAINER (button), image);
 
@@ -642,6 +674,35 @@ render_bell_disabled_pixbuf (GtkWidget *for_widget, gint size)
   return pixbuf;
 }
 
+static void
+focus_update_dnd_bell_icon (FocusPlugin *fp)
+{
+  GdkPixbuf *pixbuf = render_bell_disabled_pixbuf (fp->img_dnd_bell, FOCUS_ROW_ICON_SIZE);
+
+  if (pixbuf != NULL)
+    {
+      gtk_image_set_from_pixbuf (GTK_IMAGE (fp->img_dnd_bell), pixbuf);
+      g_object_unref (pixbuf);
+    }
+}
+
+/* Unlike an image set by icon name, a plain pixbuf never gets
+ * re-recolored by GTK on its own -- both img_stay_awake
+ * (recolor_mask_pixbuf()) and img_dnd_bell (render_bell_disabled_pixbuf())
+ * bake the current foreground color into their pixels at the moment
+ * they're rendered. Without reacting to "style-updated" (which GTK
+ * emits on a widget whenever its resolved style changes, switching the
+ * system's light/dark theme included), those baked-in colors would
+ * keep showing the old theme -- sometimes invisible against the new
+ * background -- until something unrelated happened to redraw them,
+ * e.g. clicking the button to activate/deactivate Focus mode. */
+static void
+focus_style_updated_cb (GtkWidget *widget, FocusPlugin *fp)
+{
+  focus_update_stay_awake_icon (fp);
+  focus_update_dnd_bell_icon (fp);
+}
+
 static GtkWidget *
 create_check_row (GtkWidget *icon, const gchar *label, GtkWidget **check_out)
 {
@@ -719,7 +780,6 @@ create_popup_window (GtkWidget *style_widget, FocusPlugin *fp)
   GtkWidget *frame;
   GtkWidget *box;
   GtkWidget *icon_coffee;
-  GtkWidget *icon_bell;
   GtkWidget *row_stay_awake;
   GtkWidget *row_dnd;
   GtkWidget *button_row;
@@ -743,9 +803,9 @@ create_popup_window (GtkWidget *style_widget, FocusPlugin *fp)
   gtk_box_pack_start (GTK_BOX (box), row_stay_awake, FALSE, FALSE, 0);
 
   bell_pixbuf = render_bell_disabled_pixbuf (style_widget, FOCUS_ROW_ICON_SIZE);
-  icon_bell = gtk_image_new_from_pixbuf (bell_pixbuf);
+  fp->img_dnd_bell = gtk_image_new_from_pixbuf (bell_pixbuf);
   g_clear_object (&bell_pixbuf);
-  row_dnd = create_check_row (icon_bell, "Do Not Disturb", &fp->check_dnd);
+  row_dnd = create_check_row (fp->img_dnd_bell, "Do Not Disturb", &fp->check_dnd);
 
   fp->icon_dnd_warning = gtk_image_new_from_icon_name ("dialog-warning-symbolic", GTK_ICON_SIZE_BUTTON);
   gtk_image_set_pixel_size (GTK_IMAGE (fp->icon_dnd_warning), FOCUS_ROW_ICON_SIZE);
@@ -816,6 +876,25 @@ focus_size_changed (XfcePanelPlugin *plugin, gint size, FocusPlugin *fp)
   return TRUE;
 }
 
+/* On a vertical panel (not deskbar mode) xfce4-panel reports
+ * GTK_ORIENTATION_VERTICAL here -- the plugin only gets the panel's
+ * narrow thickness to work with, so fp->box must stack the main button
+ * above the arrow button instead of placing them side by side, or the
+ * arrow gets squeezed down to zero width and disappears. The arrow
+ * glyph is swapped the same way GTK's own widgets (e.g. GtkExpander)
+ * rotate their disclosure triangle to match: pointing right instead of
+ * down still reads as "more options below/beside" once the row becomes
+ * a column. */
+static void
+focus_orientation_changed (XfcePanelPlugin *plugin, GtkOrientation orientation, FocusPlugin *fp)
+{
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (fp->box), orientation);
+  gtk_image_set_from_icon_name (GTK_IMAGE (fp->img_arrow),
+                                 orientation == GTK_ORIENTATION_HORIZONTAL ? "pan-down-symbolic" : "pan-end-symbolic",
+                                 GTK_ICON_SIZE_BUTTON);
+  gtk_image_set_pixel_size (GTK_IMAGE (fp->img_arrow), FOCUS_ARROW_ICON_SIZE);
+}
+
 static void
 focus_free_data (XfcePanelPlugin *plugin, FocusPlugin *fp)
 {
@@ -881,6 +960,12 @@ focus_construct (XfcePanelPlugin *plugin)
   g_signal_connect (fp->btn_arrow, "clicked", G_CALLBACK (arrow_clicked_cb), fp);
   gtk_widget_show_all (fp->btn_arrow);
 
+  /* fp->popup_window is a separate top-level, not a descendant of
+   * fp->ebox, so it needs its own "style-updated" listener to keep
+   * img_dnd_bell in sync with the theme; see focus_style_updated_cb(). */
+  g_signal_connect (fp->btn_stay_awake, "style-updated", G_CALLBACK (focus_style_updated_cb), fp);
+  g_signal_connect (fp->popup_window, "style-updated", G_CALLBACK (focus_style_updated_cb), fp);
+
   g_signal_connect (fp->check_stay_awake, "toggled", G_CALLBACK (check_stay_awake_toggled_cb), fp);
   g_signal_connect (fp->check_dnd, "toggled", G_CALLBACK (check_dnd_toggled_cb), fp);
   g_signal_connect (fp->dnd, "changed", G_CALLBACK (dnd_changed_cb), fp);
@@ -893,7 +978,9 @@ focus_construct (XfcePanelPlugin *plugin)
   g_signal_connect (plugin, "free-data", G_CALLBACK (focus_free_data), fp);
   g_signal_connect (plugin, "save", G_CALLBACK (focus_save), fp);
   g_signal_connect (plugin, "size-changed", G_CALLBACK (focus_size_changed), fp);
+  g_signal_connect (plugin, "orientation-changed", G_CALLBACK (focus_orientation_changed), fp);
 
+  focus_orientation_changed (plugin, xfce_panel_plugin_get_orientation (plugin), fp);
   focus_apply_icon_size (fp);
   focus_load_settings (fp);
 }
