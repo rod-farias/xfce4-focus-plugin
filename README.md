@@ -22,20 +22,35 @@ An eye icon: with lashes when Focus mode is active, and without lashes when it i
 
 ## Installation
 
-- There is a [.deb package](https://github.com/rod-farias/xfce4-focus-plugin/releases) for Xfce 4.20 on Ubuntu 26.04; it is not guaranteed to install correctly on other combinations.
-- For other distributions: clone the repository, install the dependencies, and build with make as detailed [here](/docs/DETAILS.md#building-and-installing).
+- There is a [.deb package](https://github.com/rod-farias/xfce4-focus-plugin/releases) for Xfce 4.20 on Ubuntu 26.04. Download the latest version release and then install with
+```bash
+sudo apt install ../xfce4-focus-plugin_<version>_amd64.deb
+```
 
-Then right-click the panel → Panel → Add New Items… and add "Focus".
+- For other distros: clone the repository, install the dependencies, and build with `make` as detailed [here](/docs/DETAILS.md#building-and-installing).
+
+### After installing
+
+Restart the panel:
+
+```bash
+xfce4-panel -r
+```
+
+Then right-click the panel → **Panel** → **Add New Items…** and add "Focus".
 
 ## Screenshots
 
 - Plugin in inactive state
+
 ![Plugin in inactive state](docs/inactive.png)
 
 - Plugin in active state
+
 ![Plugin in active state](docs/active.png)
 
 - Dropdown preferences
+
 ![Dropdown preferences](docs/preferences.png)
 
 
